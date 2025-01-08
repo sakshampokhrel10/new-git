@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Football Game</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #4CAF50;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            border: 5px solid #fff;
+            background-color: #006400;
+            position: relative;
+            width: 800px;
+            height: 400px;
+            margin: 20px auto;
+        }
+        .scoreboard {
+            text-align: center;
+            color: #fff;
+            margin-top: 10px;
+        }
+        .player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+        }
+        .argentina {
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/1/1a/Flag_of_Argentina.svg');
+        }
+        .nepal {
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/9/9b/Flag_of_Nepal.svg');
+        }
+        #ball {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #FFD700;
+            border-radius: 50%;
+        }
+        .goal {
+            position: absolute;
+            width: 20px;
+            height: 100px;
+            background-color: #fff;
+            top: 150px;
+        }
+        .left-goal {
+            left: 0;
+        }
+        .right-goal {
+            right: 0;
+        }
+        .field-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 1px solid #fff;
+        }
+        .field-lines .center-circle, .field-lines .goal-box {
+            border-color: #fff;
+        }
+        .center-circle {
+            position: absolute;
+            top: 170px;
+            left: 380px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .goal-box {
+            position: absolute;
+            top: 130px;
+            width: 120px;
+            height: 140px;
+            border: 2px solid white;
+        }
+        .goal-box.left {
+            left: -60px;
+        }
+        .goal-box.right {
+            right: -60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scoreboard">
+        <h1>Football Game</h1>
+        <p><b>Player 1 (Nepal - #11): Arrow Keys</b> | <b>Player 2 (Argentina - #10): W/A/S/D</b></p>
+        <h3>Score: <span id="scoreNepal">0</span> - <span id="scoreArgentina">0</span></h3>
+    </div>
+    <div id="gameCanvas">
+        <div class="field-lines">
+            <div class="center-circle"></div>
+            <div class="goal-box left"></div>
+            <div class="goal-box right"></div>
+        </div>
+        <div id="player1" class="player nepal"></div>
+        <div id="player2" class="player argentina"></div>
+        <div id="ball"></div>
+        <div class="goal left-goal"></div>
+        <div class="goal right-goal"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const player1 = document.getElementById('player1');
+        const player2 = document.getElementById('player2');
+        const ball = document.getElementById('ball');
+        const scoreNepal = document.getElementById('scoreNepal');
+        const scoreArgentina = document.getElementById('scoreArgentina');
+
+        let score1 = 0;
+        let score2 = 0;
+
+        // Ball velocity
+        let ballVelocityX = 0;
+        let ballVelocityY = 0;
+        const friction = 0.98;
+        const ballSpeed = 0.5;
+
+        // Set initial positions
+        player1.style.left = '50px';
+        player1.style.top = '180px';
+        player2.style.left = '700px';
+        player2.style.top = '180px';
+        ball.style.left = '390px';
+        ball.style.top = '190px';
+
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        function movePlayer(player, dx, dy) {
+            const rect = player.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+
+            let newX = parseInt(player.style.left || 0) + dx;
+            let newY = parseInt(player.style.top || 0) + dy;
+
+            newX = Math.max(0, Math.min(canvasRect.width - rect.width, newX));
+            newY = Math.max(0, Math.min(canvasRect.height - rect.height, newY));
+
+            player.style.left = `${newX}px`;
+            player.style.top = `${newY}px`;
+        }
+
+        function moveBall() {
+            const ballRect = ball.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+
+            let newX = parseInt(ball.style.left || 0) + ballVelocityX;
+            let newY = parseInt(ball.style.top || 0) + ballVelocityY;
+
+            if (newX < 0 || newX > canvasRect.width - ballRect.width) {
+                ballVelocityX *= -1;
+            }
+            if (newY < 0 || newY > canvasRect.height - ballRect.height) {
+                ballVelocityY *= -1;
+            }
+
+            newX = Math.max(0, Math.min(canvasRect.width - ballRect.width, newX));
+            newY = Math.max(0, Math.min(canvasRect.height - ballRect.height, newY));
+
+            ball.style.left = `${newX}px`;
+            ball.style.top = `${newY}px`;
+
+            ballVelocityX *= friction;
+            ballVelocityY *= friction;
+        }
+
+        function applyKick(player) {
+            const pRect = player.getBoundingClientRect();
+            const bRect = ball.getBoundingClientRect();
+
+            const dx = bRect.left + bRect.width / 2 - (pRect.left + pRect.width / 2);
+            const dy = bRect.top + bRect.height / 2 - (pRect.top + pRect.height / 2);
+
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const force = 6;
+
+            ballVelocityX += (dx / distance) * force;
+            ballVelocityY += (dy / distance) * force;
+        }
+
+        function checkGoal() {
+            const ballRect = ball.getBoundingClientRect();
+            const leftGoal = document.querySelector('.left-goal').getBoundingClientRect();
+            const rightGoal = document.querySelector('.right-goal').getBoundingClientRect();
+
+            if (ballRect.left <= leftGoal.right &&
+                ballRect.top + ballRect.height / 2 >= leftGoal.top &&
+                ballRect.top + ballRect.height / 2 <= leftGoal.bottom) {
+                score2++;
+                resetPositions();
+            } else if (ballRect.right >= rightGoal.left &&
+                ballRect.top + ballRect.height / 2 >= rightGoal.top &&
+                ballRect.top + ballRect.height / 2 <= rightGoal.bottom) {
+                score1++;
+                resetPositions();
+            }
+
+            scoreNepal.textContent = score2;
+            scoreArgentina.textContent = score1;
+        }
+
+        function resetPositions() {
+            player1.style.left = '50px';
+            player1.style.top = '180px';
+            player2.style.left = '700px';
+            player2.style.top = '180px';
+            ball.style.left = '390px';
+            ball.style.top = '190px';
+            ballVelocityX = 0;
+            ballVelocityY = 0;
+        }
+
+        function update() {
+            if (keys['w']) movePlayer(player1, 0, -5);
+            if (keys['s']) movePlayer(player1, 0, 5);
+            if (keys['a']) movePlayer(player1, -5, 0);
+            if (keys['d']) movePlayer(player1, 5, 0);
+
+            if (keys['ArrowUp']) movePlayer(player2, 0, -5);
+            if (keys['ArrowDown']) movePlayer(player2, 0, 5);
+            if (keys['ArrowLeft']) movePlayer(player2, -5, 0);
+            if (keys['ArrowRight']) movePlayer(player2, 5, 0);
+
+            const p1Rect = player1.getBoundingClientRect();
+            const p2Rect = player2.getBoundingClientRect();
+            const bRect = ball.getBoundingClientRect();
+
+            if (checkCollision(p1Rect, bRect)) applyKick(player1);
+            if (checkCollision(p2Rect, bRect)) applyKick(player2);
+
+            moveBall();
+            checkGoal();
+        }
+
+        function checkCollision(playerRect, ballRect) {
+            return (
+                ballRect.left < playerRect.right &&
+                ballRect.right > playerRect.left &&
+                ballRect.top < playerRect.bottom &&
+                ballRect.bottom > playerRect.top
+            );
+        }
+
+        function gameLoop() {
+            update();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
